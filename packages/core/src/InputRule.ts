@@ -1,8 +1,13 @@
+import {
+  Fragment,
+  Node as ProseMirrorNode,
+} from '@tiptap/pm/model'
 import { EditorState, Plugin, TextSelection } from '@tiptap/pm/state'
 
 import { CommandManager } from './CommandManager.js'
 import { Editor } from './Editor.js'
 import { createChainableState } from './helpers/createChainableState.js'
+import { getHTMLFromFragment } from './helpers/getHTMLFromFragment.js'
 import { getTextContentFromNodes } from './helpers/getTextContentFromNodes.js'
 import {
   CanCommands,
@@ -184,7 +189,7 @@ export function inputRulesPlugin(props: { editor: Editor; rules: InputRule[] }):
       init() {
         return null
       },
-      apply(tr, prev) {
+      apply(tr, prev, state) {
         const stored = tr.getMeta(plugin)
 
         if (stored) {
@@ -192,12 +197,25 @@ export function inputRulesPlugin(props: { editor: Editor; rules: InputRule[] }):
         }
 
         // if InputRule is triggered by insertContent()
-        const simulatedInputMeta = tr.getMeta('applyInputRules')
+        const simulatedInputMeta = tr.getMeta('applyInputRules') as { from: number; text: string | ProseMirrorNode | Fragment } | undefined
         const isSimulatedInput = !!simulatedInputMeta
 
         if (isSimulatedInput) {
           setTimeout(() => {
-            const { from, text } = simulatedInputMeta
+
+            let { text } = simulatedInputMeta
+
+            if (typeof text === 'string') {
+              text = text as string
+            } else {
+              if ('content' in text) {
+                text = text.content
+              }
+
+              text = getHTMLFromFragment(text, state.schema)
+            }
+
+            const { from } = simulatedInputMeta
             const to = from + text.length
 
             run({
