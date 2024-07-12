@@ -51,7 +51,7 @@ For help, discussion about best practices, or any other conversation that would 
         <img src="https://unavatar.io/github/storyblok" width="100"><br>
         <strong>Storyblok</strong>
       </a>
-    </td>    
+    </td>
   </tr>
 </table>
 
@@ -112,3 +112,4 @@ Please see [CONTRIBUTING](CONTRIBUTING.md) for details.
 
 ## License
 The MIT License (MIT). Please see [License File](LICENSE.md) for more information.
+something new added
