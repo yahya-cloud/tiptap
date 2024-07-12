@@ -1,4 +1,5 @@
 import {
+  DecorationWithType,
   NodeView,
   NodeViewProps,
   NodeViewRenderer,
@@ -9,9 +10,9 @@ import { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import { Decoration, NodeView as ProseMirrorNodeView } from '@tiptap/pm/view'
 import React from 'react'
 
-import { Editor } from './Editor'
-import { ReactRenderer } from './ReactRenderer'
-import { ReactNodeViewContext, ReactNodeViewContextProps } from './useReactNodeView'
+import { Editor } from './Editor.js'
+import { ReactRenderer } from './ReactRenderer.js'
+import { ReactNodeViewContext, ReactNodeViewContextProps } from './useReactNodeView.js'
 
 export interface ReactNodeViewRendererOptions extends NodeViewRendererOptions {
   update:
@@ -25,6 +26,7 @@ export interface ReactNodeViewRendererOptions extends NodeViewRendererOptions {
     | null
   as?: string
   className?: string
+  attrs?: Record<string, string>
 }
 
 class ReactNodeView extends NodeView<
@@ -78,9 +80,13 @@ class ReactNodeView extends NodeView<
 
     ReactNodeViewProvider.displayName = 'ReactNodeView'
 
-    this.contentDOMElement = this.node.isLeaf
-      ? null
-      : document.createElement(this.node.isInline ? 'span' : 'div')
+    if (this.node.isLeaf) {
+      this.contentDOMElement = null
+    } else if (this.options.contentDOMElementTag) {
+      this.contentDOMElement = document.createElement(this.options.contentDOMElementTag)
+    } else {
+      this.contentDOMElement = document.createElement(this.node.isInline ? 'span' : 'div')
+    }
 
     if (this.contentDOMElement) {
       // For some reason the whiteSpace prop is not inherited properly in Chrome and Safari
@@ -97,11 +103,15 @@ class ReactNodeView extends NodeView<
 
     const { className = '' } = this.options
 
+    this.handleSelectionUpdate = this.handleSelectionUpdate.bind(this)
+    this.editor.on('selectionUpdate', this.handleSelectionUpdate)
+
     this.renderer = new ReactRenderer(ReactNodeViewProvider, {
       editor: this.editor,
       props,
       as,
       className: `node-${this.node.type.name} ${className}`.trim(),
+      attrs: this.options.attrs,
     })
   }
 
@@ -124,7 +134,25 @@ class ReactNodeView extends NodeView<
     return this.contentDOMElement
   }
 
-  update(node: ProseMirrorNode, decorations: Decoration[]) {
+  handleSelectionUpdate() {
+    const { from, to } = this.editor.state.selection
+
+    if (from <= this.getPos() && to >= this.getPos() + this.node.nodeSize) {
+      if (this.renderer.props.selected) {
+        return
+      }
+
+      this.selectNode()
+    } else {
+      if (!this.renderer.props.selected) {
+        return
+      }
+
+      this.deselectNode()
+    }
+  }
+
+  update(node: ProseMirrorNode, decorations: DecorationWithType[]) {
     const updateProps = (props?: Record<string, any>) => {
       this.renderer.updateProps(props)
     }
@@ -165,16 +193,19 @@ class ReactNodeView extends NodeView<
     this.renderer.updateProps({
       selected: true,
     })
+    this.renderer.element.classList.add('ProseMirror-selectednode')
   }
 
   deselectNode() {
     this.renderer.updateProps({
       selected: false,
     })
+    this.renderer.element.classList.remove('ProseMirror-selectednode')
   }
 
   destroy() {
     this.renderer.destroy()
+    this.editor.off('selectionUpdate', this.handleSelectionUpdate)
     this.contentDOMElement = null
   }
 }

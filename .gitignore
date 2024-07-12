@@ -7,6 +7,7 @@ dist
 .env
 .env.*
 .npmrc
+.eslintcache
 
 # Log files
 npm-debug.log*
@@ -15,6 +16,9 @@ yarn-error.log*
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache
+
+# Turbo cache
+.turbo
 
 .rpt2_cache
 .rts2_cache
@@ -30,3 +34,7 @@ tests/cypress/videos
 # packaged files
 packages/**/*.tgz
 demos/*.tgz
+
+# demo directories
+demos/src/Dev/**
+!demos/src/Dev/.gitkeep

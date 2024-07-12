@@ -1,7 +1,7 @@
 {
   "name": "@tiptap/vue-3",
   "description": "Vue components for tiptap",
-  "version": "2.0.0-beta.217",
+  "version": "2.5.0-pre.15",
   "homepage": "https://tiptap.dev",
   "keywords": [
     "tiptap",
@@ -28,7 +28,12 @@
     "src",
     "dist"
   ],
+  "dependencies": {
+    "@tiptap/extension-bubble-menu": "^2.5.0-pre.15",
+    "@tiptap/extension-floating-menu": "^2.5.0-pre.15"
+  },
   "devDependencies": {
+<<<<<<< HEAD
     "@tiptap/core": "2.0.0-beta.217",
     "@tiptap/pm": "2.0.0-beta.217",
     "vue": "^3.0.0"
@@ -42,6 +47,17 @@
     "@tiptap/extension-bubble-menu": "2.0.0-beta.217",
     "@tiptap/extension-floating-menu": "2.0.0-beta.217"
   },
+=======
+    "@tiptap/core": "^2.5.0-pre.15",
+    "@tiptap/pm": "^2.5.0-pre.15",
+    "vue": "^3.0.0"
+  },
+  "peerDependencies": {
+    "@tiptap/core": "^2.5.0-pre.15",
+    "@tiptap/pm": "^2.5.0-pre.15",
+    "vue": "^3.0.0"
+  },
+>>>>>>> db0d0076605dc29539449d866c41377cf8f25c65
   "repository": {
     "type": "git",
     "url": "https://github.com/ueberdosis/tiptap",

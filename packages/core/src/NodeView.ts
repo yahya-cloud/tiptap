@@ -1,12 +1,17 @@
 import { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import { NodeSelection } from '@tiptap/pm/state'
-import { Decoration, NodeView as ProseMirrorNodeView } from '@tiptap/pm/view'
+import { NodeView as ProseMirrorNodeView } from '@tiptap/pm/view'
 
-import { Editor as CoreEditor } from './Editor'
-import { Node } from './Node'
-import { NodeViewRendererOptions, NodeViewRendererProps } from './types'
-import { isiOS } from './utilities/isiOS'
+import { Editor as CoreEditor } from './Editor.js'
+import { Node } from './Node.js'
+import { DecorationWithType, NodeViewRendererOptions, NodeViewRendererProps } from './types.js'
+import { isAndroid } from './utilities/isAndroid.js'
+import { isiOS } from './utilities/isiOS.js'
 
+/**
+ * Node views are used to customize the rendered DOM structure of a node.
+ * @see https://tiptap.dev/guide/node-views
+ */
 export class NodeView<
   Component,
   NodeEditor extends CoreEditor = CoreEditor,
@@ -22,7 +27,7 @@ export class NodeView<
 
   node: ProseMirrorNode
 
-  decorations: Decoration[]
+  decorations: DecorationWithType[]
 
   getPos: any
 
@@ -38,7 +43,7 @@ export class NodeView<
     } as Options
     this.extension = props.extension
     this.node = props.node
-    this.decorations = props.decorations
+    this.decorations = props.decorations as DecorationWithType[]
     this.getPos = props.getPos
     this.mount()
   }
@@ -113,11 +118,12 @@ export class NodeView<
       return false
     }
 
+    const isDragEvent = event.type.startsWith('drag')
     const isDropEvent = event.type === 'drop'
     const isInput = ['INPUT', 'BUTTON', 'SELECT', 'TEXTAREA'].includes(target.tagName) || target.isContentEditable
 
     // any input event within node views should be ignored by ProseMirror
-    if (isInput && !isDropEvent) {
+    if (isInput && !isDropEvent && !isDragEvent) {
       return true
     }
 
@@ -129,7 +135,6 @@ export class NodeView<
     const isPasteEvent = event.type === 'paste'
     const isCutEvent = event.type === 'cut'
     const isClickEvent = event.type === 'mousedown'
-    const isDragEvent = event.type.startsWith('drag')
 
     // ProseMirror tries to drag selectable nodes
     // even if `draggable` is set to `false`
@@ -153,6 +158,14 @@ export class NodeView<
 
         document.addEventListener(
           'dragend',
+          () => {
+            this.isDragging = false
+          },
+          { once: true },
+        )
+
+        document.addEventListener(
+          'drop',
           () => {
             this.isDragging = false
           },
@@ -204,14 +217,15 @@ export class NodeView<
       return false
     }
 
-    // try to prevent a bug on iOS that will break node views on enter
+    // try to prevent a bug on iOS and Android that will break node views on enter
     // this is because ProseMirror can’t preventDispatch on enter
     // this will lead to a re-render of the node view on enter
     // see: https://github.com/ueberdosis/tiptap/issues/1214
+    // see: https://github.com/ueberdosis/tiptap/issues/2534
     if (
       this.dom.contains(mutation.target)
       && mutation.type === 'childList'
-      && isiOS()
+      && (isiOS() || isAndroid())
       && this.editor.isFocused
     ) {
       const changedNodes = [

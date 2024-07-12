@@ -1,29 +1,42 @@
-import React, { HTMLProps } from 'react'
+import React, {
+  ForwardedRef, forwardRef, HTMLProps, LegacyRef, MutableRefObject,
+} from 'react'
 import ReactDOM, { flushSync } from 'react-dom'
 
-import { Editor } from './Editor'
-import { ReactRenderer } from './ReactRenderer'
+import { Editor } from './Editor.js'
+import { ReactRenderer } from './ReactRenderer.js'
+
+const mergeRefs = <T extends HTMLDivElement>(
+  ...refs: Array<MutableRefObject<T> | LegacyRef<T> | undefined>
+) => {
+  return (node: T) => {
+    refs.forEach(ref => {
+      if (typeof ref === 'function') {
+        ref(node)
+      } else if (ref) {
+        (ref as MutableRefObject<T | null>).current = node
+      }
+    })
+  }
+}
 
 const Portals: React.FC<{ renderers: Record<string, ReactRenderer> }> = ({ renderers }) => {
   return (
     <>
       {Object.entries(renderers).map(([key, renderer]) => {
-        return ReactDOM.createPortal(
-          renderer.reactElement,
-          renderer.element,
-          key,
-        )
+        return ReactDOM.createPortal(renderer.reactElement, renderer.element, key)
       })}
     </>
   )
 }
 
 export interface EditorContentProps extends HTMLProps<HTMLDivElement> {
-  editor: Editor | null,
+  editor: Editor | null;
+  innerRef?: ForwardedRef<HTMLDivElement | null>;
 }
 
 export interface EditorContentState {
-  renderers: Record<string, ReactRenderer>
+  renderers: Record<string, ReactRenderer>;
 }
 
 export class PureEditorContent extends React.Component<EditorContentProps, EditorContentState> {
@@ -52,7 +65,7 @@ export class PureEditorContent extends React.Component<EditorContentProps, Edito
   init() {
     const { editor } = this.props
 
-    if (editor && editor.options.element) {
+    if (editor && !editor.isDestroyed && editor.options.element) {
       if (editor.contentComponent) {
         return
       }
@@ -115,6 +128,8 @@ export class PureEditorContent extends React.Component<EditorContentProps, Edito
       return
     }
 
+    this.initialized = false
+
     if (!editor.isDestroyed) {
       editor.view.setProps({
         nodeViews: {},
@@ -137,11 +152,11 @@ export class PureEditorContent extends React.Component<EditorContentProps, Edito
   }
 
   render() {
-    const { editor, ...rest } = this.props
+    const { editor, innerRef, ...rest } = this.props
 
     return (
       <>
-        <div ref={this.editorContentRef} {...rest} />
+        <div ref={mergeRefs(innerRef, this.editorContentRef)} {...rest} />
         {/* @ts-ignore */}
         <Portals renderers={this.state.renderers} />
       </>
@@ -149,4 +164,20 @@ export class PureEditorContent extends React.Component<EditorContentProps, Edito
   }
 }
 
-export const EditorContent = React.memo(PureEditorContent)
+// EditorContent should be re-created whenever the Editor instance changes
+const EditorContentWithKey = forwardRef<HTMLDivElement, EditorContentProps>(
+  (props: Omit<EditorContentProps, 'innerRef'>, ref) => {
+    const key = React.useMemo(() => {
+      return Math.floor(Math.random() * 0xFFFFFFFF).toString()
+    }, [props.editor])
+
+    // Can't use JSX here because it conflicts with the type definition of Vue's JSX, so use createElement
+    return React.createElement(PureEditorContent, {
+      key,
+      innerRef: ref,
+      ...props,
+    })
+  },
+)
+
+export const EditorContent = React.memo(EditorContentWithKey)

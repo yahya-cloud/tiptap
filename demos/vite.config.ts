@@ -17,6 +17,11 @@ import { defineConfig } from 'vite'
 const getPackageDependencies = () => {
   const paths: Array<{ find: string, replacement: any }> = []
 
+  paths.push({
+    find: 'yjs',
+    replacement: resolve('../node_modules/yjs/src/index.js'),
+  })
+
   fg.sync('../packages/*', { onlyDirectories: true })
     .map(name => name.replace('../packages/', ''))
     .forEach(name => {
@@ -42,6 +47,12 @@ const includeDependencies = fs.readFileSync('./includeDependencies.txt')
   .filter(value => value)
 
 export default defineConfig({
+  server: {
+    port: 3000,
+  },
+  preview: {
+    port: 3000,
+  },
   optimizeDeps: {
     include: includeDependencies,
   },
@@ -59,8 +70,11 @@ export default defineConfig({
     // checker({ typescript: { tsconfigPath: './tsconfig.react.json' } }),
     // checker({ typescript: { tsconfigPath: './tsconfig.vue-2.json' } }),
     // checker({ typescript: { tsconfigPath: './tsconfig.vue-3.json' } }),
+    // @ts-ignore
     vue(),
+    // @ts-ignore
     react(),
+    // @ts-ignore
     svelte(),
 
     {
@@ -70,10 +84,12 @@ export default defineConfig({
         transform(html: string, context) {
           const dir = dirname(context.path)
           const data = dir.split('/')
+
           const demoCategory = data[2]
           const demoName = data[3]
+          const frameworkName = data[4]
 
-          if (dir.endsWith('/JS')) {
+          if (dir.endsWith('/JS') || dir.endsWith('-JS')) {
             return {
               html: `
                 <!DOCTYPE html>
@@ -87,7 +103,7 @@ export default defineConfig({
                     <script type="module">
                       import setup from '../../../../setup/js.ts'
                       import source from '@source'
-                      setup('${demoCategory}/${demoName}', source)
+                      setup('${demoCategory}/${demoName}/${frameworkName}', source)
                     </script>
                   </body>
                 </html>
@@ -96,7 +112,7 @@ export default defineConfig({
             }
           }
 
-          if (dir.endsWith('/Vue')) {
+          if (dir.endsWith('/Vue') || dir.endsWith('-Vue')) {
             return {
               html: `
                 <!DOCTYPE html>
@@ -110,7 +126,7 @@ export default defineConfig({
                     <script type="module">
                       import setup from '../../../../setup/vue.ts'
                       import source from '@source'
-                      setup('${demoCategory}/${demoName}', source)
+                      setup('${demoCategory}/${demoName}/${frameworkName}', source)
                     </script>
                   </body>
                 </html>
@@ -119,7 +135,7 @@ export default defineConfig({
             }
           }
 
-          if (dir.endsWith('/Svelte')) {
+          if (dir.endsWith('/Svelte') || dir.endsWith('-Svelte')) {
             return {
               html: `
                 <!DOCTYPE html>
@@ -133,7 +149,7 @@ export default defineConfig({
                     <script type="module">
                       import setup from '../../../../setup/svelte.ts'
                       import source from '@source'
-                      setup('${demoCategory}/${demoName}', source)
+                      setup('${demoCategory}/${demoName}/${frameworkName}', source)
                     </script>
                   </body>
                 </html>
@@ -142,7 +158,7 @@ export default defineConfig({
             }
           }
 
-          if (dir.endsWith('/React')) {
+          if (dir.endsWith('/React') || dir.endsWith('-React')) {
             return {
               html: `
                 <!DOCTYPE html>
@@ -156,7 +172,7 @@ export default defineConfig({
                     <script type="module">
                       import setup from '../../../../setup/react.ts'
                       import source from '@source'
-                      setup('${demoCategory}/${demoName}', source)
+                      setup('${demoCategory}/${demoName}/${frameworkName}', source)
                     </script>
                   </body>
                 </html>

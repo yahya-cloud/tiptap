@@ -3,15 +3,46 @@ import {
 } from '@tiptap/core'
 import { EditorState, Plugin, PluginKey } from '@tiptap/pm/state'
 import { EditorView } from '@tiptap/pm/view'
-import debounce from 'lodash/debounce'
 import tippy, { Instance, Props } from 'tippy.js'
 
 export interface BubbleMenuPluginProps {
+  /**
+   * The plugin key.
+   * @type {PluginKey | string}
+   * @default 'bubbleMenu'
+   */
   pluginKey: PluginKey | string
+
+  /**
+   * The editor instance.
+   */
   editor: Editor
+
+  /**
+   * The DOM element that contains your menu.
+   * @type {HTMLElement}
+   * @default null
+   */
   element: HTMLElement
+
+  /**
+   * The options for the tippy.js instance.
+   * @see https://atomiks.github.io/tippyjs/v6/all-props/
+   */
   tippyOptions?: Partial<Props>
+
+  /**
+   * The delay in milliseconds before the menu should be updated.
+   * This can be useful to prevent performance issues.
+   * @type {number}
+   * @default 250
+   */
   updateDelay?: number
+
+  /**
+   * A function that determines whether the menu should be shown or not.
+   * If this function returns `false`, the menu will be hidden, otherwise it will be shown.
+   */
   shouldShow?:
     | ((props: {
         editor: Editor
@@ -42,6 +73,8 @@ export class BubbleMenuView {
   public tippyOptions?: Partial<Props>
 
   public updateDelay: number
+
+  private updateDebounceTimer: number | undefined
 
   public shouldShow: Exclude<BubbleMenuPluginProps['shouldShow'], null> = ({
     view,
@@ -156,19 +189,41 @@ export class BubbleMenuView {
 
   update(view: EditorView, oldState?: EditorState) {
     const { state } = view
-    const hasValidSelection = state.selection.$from.pos !== state.selection.$to.pos
+    const hasValidSelection = state.selection.from !== state.selection.to
 
     if (this.updateDelay > 0 && hasValidSelection) {
-      debounce(this.updateHandler, this.updateDelay)(view, oldState)
-    } else {
-      this.updateHandler(view, oldState)
+      this.handleDebouncedUpdate(view, oldState)
+      return
     }
+
+    const selectionChanged = !oldState?.selection.eq(view.state.selection)
+    const docChanged = !oldState?.doc.eq(view.state.doc)
+
+    this.updateHandler(view, selectionChanged, docChanged, oldState)
   }
 
-  updateHandler = (view: EditorView, oldState?: EditorState) => {
+  handleDebouncedUpdate = (view: EditorView, oldState?: EditorState) => {
+    const selectionChanged = !oldState?.selection.eq(view.state.selection)
+    const docChanged = !oldState?.doc.eq(view.state.doc)
+
+    if (!selectionChanged && !docChanged) {
+      return
+    }
+
+    if (this.updateDebounceTimer) {
+      clearTimeout(this.updateDebounceTimer)
+    }
+
+    this.updateDebounceTimer = window.setTimeout(() => {
+      this.updateHandler(view, selectionChanged, docChanged, oldState)
+    }, this.updateDelay)
+  }
+
+  updateHandler = (view: EditorView, selectionChanged: boolean, docChanged: boolean, oldState?: EditorState) => {
     const { state, composing } = view
-    const { doc, selection } = state
-    const isSame = oldState && oldState.doc.eq(doc) && oldState.selection.eq(selection)
+    const { selection } = state
+
+    const isSame = !selectionChanged && !docChanged
 
     if (composing || isSame) {
       return
@@ -201,7 +256,13 @@ export class BubbleMenuView {
         this.tippyOptions?.getReferenceClientRect
         || (() => {
           if (isNodeSelection(state.selection)) {
-            const node = view.nodeDOM(from) as HTMLElement
+            let node = view.nodeDOM(from) as HTMLElement
+
+            const nodeViewWrapper = node.dataset.nodeViewWrapper ? node : node.querySelector('[data-node-view-wrapper]')
+
+            if (nodeViewWrapper) {
+              node = nodeViewWrapper.firstChild as HTMLElement
+            }
 
             if (node) {
               return node.getBoundingClientRect()

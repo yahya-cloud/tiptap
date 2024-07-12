@@ -1,4 +1,3 @@
-import sizes from '@atomico/rollup-plugin-sizes'
 import babel from '@rollup/plugin-babel'
 import commonjs from '@rollup/plugin-commonjs'
 import resolve from '@rollup/plugin-node-resolve'
@@ -6,7 +5,7 @@ import autoExternal from 'rollup-plugin-auto-external'
 import sourcemaps from 'rollup-plugin-sourcemaps'
 import typescript from 'rollup-plugin-typescript2'
 
-import pkg from './package.json'
+import pkg from './package.json' assert { type: 'json' }
 
 export default {
   external: [/@tiptap\/pm\/.*/],
@@ -43,7 +42,6 @@ export default {
       babelHelpers: 'bundled',
       exclude: '../../node_modules/**',
     }),
-    sizes(),
     typescript({
       tsconfig: '../../tsconfig.json',
       tsconfigOverride: {

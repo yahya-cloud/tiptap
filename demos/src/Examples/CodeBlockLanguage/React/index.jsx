@@ -17,7 +17,7 @@ import html from 'highlight.js/lib/languages/xml'
 import { lowlight } from 'lowlight'
 import React from 'react'
 
-import CodeBlockComponent from './CodeBlockComponent'
+import CodeBlockComponent from './CodeBlockComponent.jsx'
 
 lowlight.registerLanguage('html', html)
 lowlight.registerLanguage('css', css)
@@ -30,9 +30,13 @@ const MenuBar = ({ editor }) => {
   }
 
   return (
-    <button onClick={() => editor.chain().focus().toggleCodeBlock().run()} className={editor.isActive('codeBlock') ? 'is-active' : ''}>
-      code block
-    </button>
+    <div className="control-group">
+      <div className="button-group">
+        <button onClick={() => editor.chain().focus().toggleCodeBlock().run()} className={editor.isActive('codeBlock') ? 'is-active' : ''}>
+          Toggle code block
+        </button>
+      </div>
+    </div>
   )
 }
 
@@ -72,9 +76,9 @@ export default () => {
   })
 
   return (
-    <div>
+    <>
       <MenuBar editor={editor} />
       <EditorContent editor={editor} />
-    </div>
+    </>
   )
 }

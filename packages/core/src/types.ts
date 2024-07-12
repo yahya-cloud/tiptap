@@ -1,16 +1,18 @@
-import { Mark as ProseMirrorMark, Node as ProseMirrorNode, ParseOptions } from '@tiptap/pm/model'
+import {
+  Mark as ProseMirrorMark, Node as ProseMirrorNode, NodeType, ParseOptions,
+} from '@tiptap/pm/model'
 import { EditorState, Transaction } from '@tiptap/pm/state'
 import {
   Decoration, EditorProps, EditorView, NodeView,
 } from '@tiptap/pm/view'
 
+import { Editor } from './Editor.js'
+import { Extension } from './Extension.js'
 import {
   Commands, ExtensionConfig, MarkConfig, NodeConfig,
-} from '.'
-import { Editor } from './Editor'
-import { Extension } from './Extension'
-import { Mark } from './Mark'
-import { Node } from './Node'
+} from './index.js'
+import { Mark } from './Mark.js'
+import { Node } from './Node.js'
 
 export type AnyConfig = ExtensionConfig | NodeConfig | MarkConfig
 export type AnyExtension = Extension | Node | Mark
@@ -37,8 +39,18 @@ export type MaybeThisParameterType<T> = Exclude<T, Primitive> extends (...args: 
 export interface EditorEvents {
   beforeCreate: { editor: Editor }
   create: { editor: Editor }
+  contentError: {
+    editor: Editor,
+    error: Error,
+    /**
+     * If called, will re-initialize the editor with the collaboration extension removed.
+     * This will prevent syncing back deletions of content not present in the current schema.
+     */
+    disableCollaboration: () => void
+  }
   update: { editor: Editor; transaction: Transaction }
   selectionUpdate: { editor: Editor; transaction: Transaction }
+  beforeTransaction: { editor: Editor; transaction: Transaction, nextState: EditorState }
   transaction: { editor: Editor; transaction: Transaction }
   focus: { editor: Editor; event: FocusEvent; transaction: Transaction }
   blur: { editor: Editor; event: FocusEvent; transaction: Transaction }
@@ -57,11 +69,28 @@ export interface EditorOptions {
   editable: boolean
   editorProps: EditorProps
   parseOptions: ParseOptions
+  coreExtensionOptions?: {
+    clipboardTextSerializer?: {
+      blockSeparator?: string
+    }
+  }
   enableInputRules: EnableRules
   enablePasteRules: EnableRules
   enableCoreExtensions: boolean
+  /**
+   * If `true`, the editor will check the content for errors on initialization.
+   * Emitting the `contentError` event if the content is invalid.
+   * Which can be used to show a warning or error message to the user.
+   * @default false
+   */
+  enableContentCheck: boolean
   onBeforeCreate: (props: EditorEvents['beforeCreate']) => void
   onCreate: (props: EditorEvents['create']) => void
+  /**
+   * Called when the editor encounters an error while parsing the content.
+   * Only enabled if `enableContentCheck` is `true`.
+   */
+  onContentError: (props: EditorEvents['contentError']) => void
   onUpdate: (props: EditorEvents['update']) => void
   onSelectionUpdate: (props: EditorEvents['selectionUpdate']) => void
   onTransaction: (props: EditorEvents['transaction']) => void
@@ -105,11 +134,11 @@ export type CommandSpec = (...args: any[]) => Command
 export type KeyboardShortcutCommand = (props: { editor: Editor }) => boolean
 
 export type Attribute = {
-  default: any
+  default?: any
   rendered?: boolean
   renderHTML?: ((attributes: Record<string, any>) => Record<string, any> | null) | null
   parseHTML?: ((element: HTMLElement) => any | null) | null
-  keepOnSplit: boolean
+  keepOnSplit?: boolean
   isRequired?: boolean
 }
 
@@ -124,7 +153,13 @@ export type ExtensionAttribute = {
 }
 
 export type GlobalAttributes = {
+  /**
+   * The node & mark types this attribute should be applied to.
+   */
   types: string[]
+  /**
+   * The attributes to add to the node or mark types.
+   */
   attributes: {
     [key: string]: Attribute
   }
@@ -148,10 +183,14 @@ export type ValuesOf<T> = T[keyof T]
 
 export type KeysWithTypeOf<T, Type> = { [P in keyof T]: T[P] extends Type ? P : never }[keyof T]
 
+export type DecorationWithType = Decoration & {
+  type: NodeType
+}
+
 export type NodeViewProps = {
   editor: Editor
   node: ProseMirrorNode
-  decorations: Decoration[]
+  decorations: DecorationWithType[]
   selected: boolean
   extension: Node
   getPos: () => number
@@ -164,6 +203,7 @@ export interface NodeViewRendererOptions {
   ignoreMutation:
     | ((props: { mutation: MutationRecord | { type: 'selection'; target: Element } }) => boolean)
     | null
+  contentDOMElementTag: string
 }
 
 export type NodeViewRendererProps = {
